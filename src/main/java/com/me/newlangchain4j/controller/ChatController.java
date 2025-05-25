@@ -6,11 +6,14 @@ import dev.langchain4j.community.model.dashscope.QwenStreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.service.TokenStream;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/ai")
@@ -63,6 +66,7 @@ public class ChatController {
 
     /**
      * 连续对话
+     *
      * @param message
      * @return
      */
@@ -82,6 +86,19 @@ public class ChatController {
     public String test5(@RequestParam(defaultValue = "我是谁") String message, Integer userId) {
         //http://localhost:8080/ai/chatmemoryunique?message=我是徐庶老师&userId=1
         return assistantUnique.chat(userId, message);
+    }
+
+    @RequestMapping(value = "/streamchatorder", produces = "text/stream;charset=UTF-8")
+    public Flux<String> memoryStreamChat(@RequestParam(defaultValue = "我是谁") String message, HttpServletResponse response) {
+        TokenStream stream = assistant.streamingChatForOrder(message, LocalDate.now().toString());
+
+        return Flux.create(sink -> {
+            stream.onPartialResponse(sink::next)
+                    .onCompleteResponse(c -> sink.complete())
+                    .onError(sink::error)
+                    .start();
+
+        });
     }
 
 }
